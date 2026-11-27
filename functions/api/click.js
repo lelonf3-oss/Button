@@ -12,25 +12,20 @@ function nextUtcMidnightIso(now = new Date()) {
 }
 
 async function loadUserStatus(env, userId, day) {
-  const dayStart = Math.floor(Date.parse(day + 'T00:00:00Z') / 1000);
-  const dayEnd = dayStart + 86400;
-
   const row = await env.DB.prepare(
     `SELECT
        (SELECT COUNT(*) FROM clicks WHERE user_id = ?1 AND kind = 'free') AS free_used,
        (SELECT COUNT(*) FROM clicks WHERE user_id = ?1 AND click_day = ?2) AS clicked_today,
-       (SELECT COUNT(*) FROM payments WHERE user_id = ?1 AND created_at >= ?3 AND created_at < ?4) AS bought_today,
        (SELECT COUNT(*) FROM credits c
           WHERE c.user_id = ?1
             AND NOT EXISTS (SELECT 1 FROM clicks k WHERE k.credit_id = c.id)) AS credits_remaining`,
   )
-    .bind(userId, day, dayStart, dayEnd)
+    .bind(userId, day)
     .first();
 
   return {
     freeUsed: row.free_used > 0,
     clickedToday: row.clicked_today > 0,
-    boughtToday: row.bought_today > 0,
     creditsRemaining: row.credits_remaining,
   };
 }
@@ -41,26 +36,15 @@ function buildUserView(status, csrfToken) {
     freeClickAvailable: !status.freeUsed,
     creditsRemaining: status.creditsRemaining,
     clickedToday: status.clickedToday,
-    boughtToday: status.boughtToday,
-    canClick: !status.clickedToday && (!status.freeUsed || status.creditsRemaining > 0),
+    canClick: !status.freeUsed || status.creditsRemaining > 0,
     nextClickAt: nextUtcMidnightIso(),
   };
 }
 
+// HIER IST DIE SPERRE ENTFERNT!
 function assertEligible(status) {
-  if (status.clickedToday) {
-    throw new ApiError(
-      409,
-      'already_clicked_today',
-      'You have already pressed the button today (UTC). Come back tomorrow.',
-    );
-  }
   if (status.freeUsed && status.creditsRemaining === 0) {
-    throw new ApiError(
-      402,
-      'no_credits',
-      'You have no clicks left. Buy a click package to keep pressing.',
-    );
+    throw new ApiError(402, 'no_credits', 'You have no clicks left. Buy a click package to keep pressing.');
   }
 }
 
@@ -82,16 +66,16 @@ export async function onRequestPost({ request, env }) {
   await enforceUserRateLimit(env, 'clickUser', session.userId, RATE_LIMITS.clickUser);
 
   const body = await readJson(request);
-
   const day = utcDay();
   const userId = session.userId;
-  assertEligible(await loadUserStatus(env, userId, day));
 
+  assertEligible(await loadUserStatus(env, userId, day));
   await requireTurnstile(env, request, body.turnstileToken);
 
   const now = nowSeconds();
   const status = await loadUserStatus(env, userId, day);
   assertEligible(status);
+  
   const kind = status.freeUsed ? 'paid' : 'free';
 
   const clickStatement =
@@ -118,18 +102,13 @@ export async function onRequestPost({ request, env }) {
       buildMilestoneStatement(env, now),
     ]);
   } catch (err) {
-    assertEligible(await loadUserStatus(env, userId, day));
     console.error('Click batch failed:', err);
     throw new ApiError(503, 'click_failed', 'The click could not be recorded. Please try again.');
   }
 
   const counterRows = results[1] && results[1].results;
   const total = counterRows && counterRows[0] ? counterRows[0].total : null;
-  if (!Number.isInteger(total)) {
-    console.error('Click batch returned no counter value.');
-    throw new ApiError(500, 'internal_error', 'Something went wrong. Please try again later.');
-  }
-
+  
   const after = await loadUserStatus(env, userId, day);
   return json({
     ok: true,
