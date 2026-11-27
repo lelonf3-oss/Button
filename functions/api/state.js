@@ -1,11 +1,3 @@
-// GET /api/state
-// Returns the real global counter, milestone information and, if the user is
-// signed in, their personal click status. All numbers come from the database.
-//
-// NOTE: loadUserStatus(), nextUtcMidnightIso() and the "user" response shape are
-// intentionally identical in click.js, so the frontend gets the same structure
-// from both endpoints. Keep them in sync when changing one of them.
-
 import { PACKAGES } from '../_lib/config.js';
 import { ApiError, json, utcDay } from '../_lib/http.js';
 import { getNextMilestone, syncCompletedMilestones } from '../_lib/milestones.js';
@@ -18,20 +10,25 @@ function nextUtcMidnightIso(now = new Date()) {
 }
 
 async function loadUserStatus(env, userId, day) {
+  const dayStart = Math.floor(Date.parse(day + 'T00:00:00Z') / 1000);
+  const dayEnd = dayStart + 86400;
+  
   const row = await env.DB.prepare(
     `SELECT
        (SELECT COUNT(*) FROM clicks WHERE user_id = ?1 AND kind = 'free') AS free_used,
        (SELECT COUNT(*) FROM clicks WHERE user_id = ?1 AND click_day = ?2) AS clicked_today,
+       (SELECT COUNT(*) FROM payments WHERE user_id = ?1 AND created_at >= ?3 AND created_at < ?4) AS bought_today,
        (SELECT COUNT(*) FROM credits c
           WHERE c.user_id = ?1
             AND NOT EXISTS (SELECT 1 FROM clicks k WHERE k.credit_id = c.id)) AS credits_remaining`,
   )
-    .bind(userId, day)
+    .bind(userId, day, dayStart, dayEnd)
     .first();
 
   return {
     freeUsed: row.free_used > 0,
     clickedToday: row.clicked_today > 0,
+    boughtToday: row.bought_today > 0,
     creditsRemaining: row.credits_remaining,
   };
 }
@@ -42,6 +39,7 @@ function buildUserView(status, csrfToken) {
     freeClickAvailable: !status.freeUsed,
     creditsRemaining: status.creditsRemaining,
     clickedToday: status.clickedToday,
+    boughtToday: status.boughtToday,
     canClick: !status.clickedToday && (!status.freeUsed || status.creditsRemaining > 0),
     nextClickAt: nextUtcMidnightIso(),
   };
@@ -54,7 +52,7 @@ export async function onRequestGet({ request, env }) {
   ]);
 
   if (!counterRow) {
-    console.error('global_counter row is missing. Were all migrations applied?');
+    console.error('global_counter row is missing.');
     throw new ApiError(500, 'database_not_ready', 'The server is not configured correctly.');
   }
 
