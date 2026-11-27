@@ -10,6 +10,10 @@ const STRIPE_API = 'https://api.stripe.com/v1';
 export async function createCheckoutSession(env, { userId, pkg, successUrl, cancelUrl }) {
   requireEnv(env, ['STRIPE_SECRET_KEY']);
 
+  // WICHTIG: .trim() entfernt unsichtbare Leerzeichen am Anfang/Ende des Keys, 
+  // die beim Kopieren oft entstehen und Stripe blockieren.
+  const secretKey = env.STRIPE_SECRET_KEY.trim();
+
   const params = new URLSearchParams();
   params.set('mode', 'payment');
   params.set('success_url', successUrl);
@@ -28,7 +32,7 @@ export async function createCheckoutSession(env, { userId, pkg, successUrl, canc
     response = await fetch(`${STRIPE_API}/checkout/sessions`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`,
+        Authorization: `Bearer ${secretKey}`,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: params,
@@ -39,21 +43,26 @@ export async function createCheckoutSession(env, { userId, pkg, successUrl, canc
   }
 
   if (!response.ok) {
-    console.error('Stripe error:', response.status, await response.text());
+    // Gibt den exakten Fehler von Stripe im Cloudflare-Log aus, damit wir sehen, was kaputt ist.
+    const errorText = await response.text();
+    console.error('Stripe API Error:', response.status, errorText);
     throw new ApiError(502, 'payment_provider_error', 'Could not start the checkout.');
   }
 
   const data = await response.json();
   if (!data || typeof data.url !== 'string' || typeof data.id !== 'string') {
+    console.error('Stripe returned invalid data:', data);
     throw new ApiError(502, 'payment_provider_error', 'Could not start the checkout.');
   }
   return { id: data.id, url: data.url };
 }
 
 // Verifies the "Stripe-Signature" header against the RAW request body.
-// Header format: "t=<timestamp>,v1=<signature>[,v1=<signature>...]"
 export async function verifyStripeSignature(rawBody, signatureHeader, secret, toleranceSeconds = 300) {
   if (!signatureHeader || !secret) return false;
+
+  // Auch hier entfernen wir eventuelle Leerzeichen beim Webhook Secret
+  const secretKey = secret.trim();
 
   let timestamp = null;
   const signatures = [];
@@ -71,10 +80,12 @@ export async function verifyStripeSignature(rawBody, signatureHeader, secret, to
   if (!Number.isInteger(timestampNumber)) return false;
   if (Math.abs(nowSeconds() - timestampNumber) > toleranceSeconds) return false;
 
-  const expected = await hmacSha256Hex(secret, `${timestamp}.${rawBody}`);
+  const expected = await hmacSha256Hex(secretKey, `${timestamp}.${rawBody}`);
   let valid = false;
   for (const signature of signatures) {
-    if (timingSafeEqual(expected, signature)) valid = true;
+    if (timingSafeEqual(expected, signature)) {
+      valid = true;
+    }
   }
   return valid;
 }
