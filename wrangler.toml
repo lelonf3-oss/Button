@@ -17,5 +17,5 @@ TURNSTILE_SITE_KEY = "DEIN-TURNSTILE-SITE-KEY-HIER"
 [[d1_databases]]
 binding = "DB"
 database_name = "the-button-db"
-database_id = "DEINE-D1-DATABASE-ID-HIER"
+database_id = "c4fc11ea-b6ec-4e1d-bf2a-ec82a7ce8e75"
 migrations_dir = "migrations"
