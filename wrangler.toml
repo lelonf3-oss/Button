@@ -1,16 +1,14 @@
 # Cloudflare Pages configuration for THE BUTTON.
 
 name = "the-button"
-compatibility_date = "2025-06-01"
+compatibility_date = "2026-11-27"
 pages_build_output_dir = "./public"
 
 [vars]
-# Public base URL without trailing slash
 SITE_URL = "https://the-button-8q1.pages.dev"
-# Google OAuth client ID
 GOOGLE_CLIENT_ID = "616747367609-69o9o14119hkj7d2fjch45r0f7uqm2v9.apps.googleusercontent.com"
-# Cloudflare Turnstile site key
-TURNSTILE_SITE_KEY = "0x4AAAAAAAGVwlvq-NrJhebVU"
+# WICHTIG: Ersetze den Wert unten durch den frisch kopierten Site Key aus deinem Turnstile-Dashboard!
+TURNSTILE_SITE_KEY = "0x4AAAAAAGVwivq-NrjhebvU"
 
 [[d1_databases]]
 binding = "DB"
