@@ -1,0 +1,22 @@
+# Cloudflare Pages configuration for THE BUTTON.
+# The "name" must match your Cloudflare Pages project name.
+# Non-secret values live here. Secrets are set in the Cloudflare dashboard
+# (see README.md) and must NEVER be written into this file.
+
+name = "the-button"
+compatibility_date = "2025-06-01"
+pages_build_output_dir = "./public"
+
+[vars]
+# Public base URL without trailing slash, e.g. "https://thebutton.example"
+SITE_URL = "https://REPLACE_WITH_YOUR_DOMAIN"
+# Google OAuth client ID (public value, not a secret)
+GOOGLE_CLIENT_ID = "REPLACE_WITH_GOOGLE_CLIENT_ID"
+# Cloudflare Turnstile site key (public value, not a secret)
+TURNSTILE_SITE_KEY = "REPLACE_WITH_TURNSTILE_SITE_KEY"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "the-button-db"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+migrations_dir = "migrations"
