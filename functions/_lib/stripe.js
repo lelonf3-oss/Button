@@ -33,19 +33,18 @@ export async function createCheckoutSession(env, { userId, pkg, successUrl, canc
       body: params,
     });
   } catch (err) {
-    // Gibt den Netzwerkfehler direkt zurück
-    return new Response(`Stripe Network Error: ${err.message}`, { status: 502 });
+    throw new ApiError(502, 'payment_provider_error', `Stripe Network Error: ${err.message}`);
   }
 
   if (!response.ok) {
-    // Gibt die exakte Fehlermeldung von Stripe im Browser aus
     const errorText = await response.text();
-    return new Response(`Stripe API Error (${response.status}): ${errorText}`, { status: 502 });
+    // Gibt den echten Stripe-Fehler an das Frontend weiter!
+    throw new ApiError(502, 'stripe_error', `Stripe API Error: ${errorText}`);
   }
 
   const data = await response.json();
-  if (!data || typeof data.url !== 'string') {
-    return new Response(`Stripe Invalid Data: ${JSON.stringify(data)}`, { status: 502 });
+  if (!data || typeof data.url !== 'string' || typeof data.id !== 'string') {
+    throw new ApiError(502, 'stripe_error', `Stripe Invalid Data: ${JSON.stringify(data)}`);
   }
   return { id: data.id, url: data.url };
 }
