@@ -8,11 +8,11 @@ pages_build_output_dir = "./public"
 
 [vars]
 # Public base URL without trailing slash, e.g. "https://thebutton.example"
-SITE_URL = "https://DEINE-DOMAIN-HIER.pages.dev"
+SITE_URL = "https://the-button.pages.dev"
 # Google OAuth client ID (public value, not a secret)
-GOOGLE_CLIENT_ID = "DEINE-GOOGLE-CLIENT-ID-HIER"
+GOOGLE_CLIENT_ID = "616747367609-69o9o14119hkj7d2fjch45r0f7uqm2v9.apps.googleusercontent.com"
 # Cloudflare Turnstile site key (public value, not a secret)
-TURNSTILE_SITE_KEY = "DEIN-TURNSTILE-SITE-KEY-HIER"
+TURNSTILE_SITE_KEY = "0x4AAAAAAGVwivq-NrjhebvU"
 
 [[d1_databases]]
 binding = "DB"
