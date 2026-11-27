@@ -1,105 +1,84 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>THE BUTTON — One World. One Button.</title>
-  <meta name="description" content="THE BUTTON is a global internet experiment. One button, one shared counter, people from all over the world. Sign in and press it.">
-  <meta name="theme-color" content="#040406">
-  <meta name="color-scheme" content="dark">
-
-  <!-- The canonical and Open Graph URLs below are filled in by functions/_middleware.js from SITE_URL. -->
-  <link rel="canonical" href="">
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>THE BUTTON</title>
+  <meta name="description" content="A global internet experiment. One world, one button. Press it and increase the global counter.">
+  
+  <!-- Open Graph -->
+  <meta property="og:title" content="THE BUTTON">
+  <meta property="og:description" content="A global internet experiment. One world, one button.">
+  <meta property="og:image" content="/design/og-image-template.svg">
   <meta property="og:type" content="website">
-  <meta property="og:site_name" content="THE BUTTON">
-  <meta property="og:title" content="THE BUTTON — One World. One Button.">
-  <meta property="og:description" content="A global internet experiment. One button, one shared counter. Every press counts.">
-  <meta property="og:locale" content="en_US">
-  <meta property="og:url" content="">
-  <meta property="og:image" content="/og-image.png">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="A glowing rainbow-colored button on a black background.">
-
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="THE BUTTON — One World. One Button.">
-  <meta name="twitter:description" content="A global internet experiment. One button, one shared counter. Every press counts.">
-  <meta name="twitter:image" content="/og-image.png">
 
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
   <main class="stage">
-
     <header class="top">
       <h1 class="title">THE BUTTON</h1>
       <p class="counter">
-        <span id="counter-total">—</span><span class="counter-sep">/</span><span id="counter-goal" class="counter-goal">—</span>
+        <span id="counter-total" class="counter-total-bump">0</span>
+        <span class="counter-sep">/</span>
+        <span id="counter-goal" class="counter-goal">1,000</span>
       </p>
       <p class="counter-label">GLOBAL CLICKS</p>
-      <div class="progress" aria-hidden="true"><div class="progress-fill" id="progress-fill"></div></div>
+      <div class="progress">
+        <div id="progress-fill" class="progress-fill"></div>
+      </div>
     </header>
 
-    <div class="button-wrap" id="button-wrap" data-ready="true">
-      <div class="glow" aria-hidden="true"><span class="spin"></span></div>
-      <div class="btn-side" aria-hidden="true"><span class="spin"></span></div>
-      <button class="btn-top" id="the-button" type="button" aria-label="Press the button (sign in required)">
-        <span class="spin"></span>
-        <span class="tint"></span>
-        <span class="gloss"></span>
-        <span class="bounce"></span>
+    <div id="button-wrap" class="button-wrap" data-ready="true">
+      <div class="glow"><div class="spin"></div></div>
+      <div class="btn-side"><div class="spin"></div></div>
+      <button id="the-button" class="btn-top" aria-label="Press the button">
+        <div class="tint"></div>
+        <div class="gloss"></div>
+        <div class="bounce"></div>
       </button>
     </div>
 
-    <section class="info" aria-labelledby="tagline">
-      <h2 class="tagline" id="tagline">ONE WORLD. ONE BUTTON.</h2>
-      <p class="milestone" id="milestone-line">Loading the next milestone…</p>
-      <p class="explain">Every press brings everyone closer to the next milestone. The counter never resets, and the experiment has no final ending.</p>
-      <p class="reached" id="reached-line" hidden></p>
-    </section>
-
-    <section class="actions" aria-label="Your account">
-      <p class="status" id="status" role="status" aria-live="polite" data-tone="info"></p>
-      <div class="turnstile-box" id="turnstile-box"></div>
-
-      <div id="auth-out" class="row">
-        <a id="sign-in" class="link-btn link-btn--primary" href="/api/auth/google/login">Sign in with Google</a>
-      </div>
-
-      <div id="auth-in" class="stack" hidden>
-        <p class="user-line" id="user-line"></p>
-        <div class="row">
-          <button id="buy-toggle" class="link-btn" type="button" aria-expanded="false" aria-controls="packages">Get more clicks</button>
-          <button id="sign-out" class="link-btn link-btn--quiet" type="button">Sign out</button>
+    <div class="info">
+      <p class="tagline">ONE WORLD. ONE BUTTON.</p>
+      <p id="milestone-line" class="milestone"></p>
+      <p id="reached-line" class="reached" hidden></p>
+      
+      <div class="actions">
+        <div id="auth-out">
+          <!-- Login link to the function route -->
+          <a id="sign-in" href="/api/auth/google/login" class="link-btn link-btn--primary">Sign in with Google</a>
         </div>
-        <div id="packages" class="packages" hidden>
-          <div id="package-list" class="package-list"></div>
-          <p class="fine">You can press once per day (UTC), whether the click is free or paid. Paid clicks never expire. Payments are handled by Stripe. <a href="/payments">Payment information</a></p>
+        <div id="auth-in" hidden>
+          <p id="user-line" class="user-line"></p>
+          <button id="sign-out" class="link-btn link-btn--quiet">Sign out</button>
+        </div>
+        
+        <div id="turnstile-box" class="turnstile-box"></div>
+        <p id="status" class="status" data-tone="info" role="status" aria-live="polite"></p>
+        
+        <div class="packages">
+          <button id="buy-toggle" class="link-btn" aria-expanded="false" aria-controls="packages">Get more clicks</button>
+          <div id="packages" hidden>
+            <div id="package-list" class="package-list"></div>
+            <p class="fine">One free click per Google account. Max one press per day (UTC). Paid credits never expire.</p>
+          </div>
         </div>
       </div>
-    </section>
-
-    <!--
-      Reserved layout slot for possible future advertising.
-      It stays empty and hidden. Do NOT enable advertising before a
-      consent mechanism that complies with applicable law is in place.
-    -->
-    <aside id="ad-slot" class="ad-slot" aria-hidden="true" hidden></aside>
+    </div>
 
     <footer class="footer">
-      <nav class="footer-nav" aria-label="Legal">
-        <a href="/privacy">Privacy Policy</a>
-        <a href="/terms">Terms of Service</a>
-        <a href="/payments">Payment Information</a>
-        <a href="/imprint">Imprint</a>
+      <nav class="footer-nav">
+        <a href="/privacy.html">Privacy</a>
+        <a href="/terms.html">Terms</a>
+        <a href="/payment.html">Payments</a>
+        <a href="/imprint.html">Imprint</a>
       </nav>
     </footer>
-
-    <noscript><p class="noscript">THE BUTTON needs JavaScript to work.</p></noscript>
   </main>
-
+  <noscript><p class="noscript">You need JavaScript to press the button.</p></noscript>
+  
+  <!-- app.js uses ES modules -->
   <script type="module" src="/js/app.js"></script>
 </body>
 </html>
