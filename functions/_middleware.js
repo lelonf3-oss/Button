@@ -1,14 +1,3 @@
-// Global middleware for all Pages Functions routes.
-//  - Same-origin check for state-changing API requests (CSRF defense in depth)
-//  - Central error handling (no internal details leak to the browser)
-//  - Security headers on every response
-//  - Injects the canonical URL and Open Graph/Twitter image URLs into HTML pages,
-//    based on the SITE_URL variable. The HTML files must contain these tags:
-//      <link rel="canonical" href="">
-//      <meta property="og:url" content="">
-//      <meta property="og:image" content="">
-//      <meta name="twitter:image" content="">
-
 import { CONTENT_SECURITY_POLICY } from './_lib/config.js';
 import { ApiError, assertSameOrigin, errorResponse, getSiteUrl } from './_lib/http.js';
 
@@ -52,7 +41,6 @@ function injectSiteUrls(response, request, env) {
 }
 
 function withSecurityHeaders(response) {
-  // Re-wrap the response so its headers are mutable (redirects/fetched responses are immutable).
   const out = new Response(response.body, response);
   out.headers.set('Content-Security-Policy', CONTENT_SECURITY_POLICY);
   out.headers.set('X-Content-Type-Options', 'nosniff');
@@ -70,7 +58,6 @@ export async function onRequest(context) {
 
   let response;
   try {
-    // The Stripe webhook is called by Stripe (no browser Origin); it is protected by its signature.
     const needsOriginCheck =
       isApi && !SAFE_METHODS.has(request.method) && url.pathname !== '/api/stripe-webhook';
     if (needsOriginCheck) assertSameOrigin(request);
