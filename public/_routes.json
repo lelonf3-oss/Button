@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "include": [
+    "/",
+    "/privacy",
+    "/terms",
+    "/payments",
+    "/imprint",
+    "/robots.txt",
+    "/sitemap.xml",
+    "/api/*"
+  ],
+  "exclude": []
+}
