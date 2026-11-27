@@ -180,6 +180,8 @@ function renderUser() {
 
   if (!u) {
     setPackagesOpen(false);
+    els.buyToggle.disabled = false;
+    els.buyToggle.title = "";
     return;
   }
 
@@ -188,6 +190,17 @@ function renderUser() {
   parts.push(`Paid clicks: ${u.creditsRemaining}`);
   if (u.clickedToday) parts.push(`Next press in ${timeUntilNextClick()}`);
   els.userLine.textContent = parts.join(' · ');
+
+  // NEUE LOGIK: Kauf-Button sperren, wenn heute geklickt oder gekauft wurde
+  if (u.clickedToday || u.boughtToday) {
+    els.buyToggle.disabled = true;
+    els.buyToggle.title = u.clickedToday 
+      ? "You cannot buy credits on the same day you pressed the button. Come back tomorrow." 
+      : "You can only buy one package per day. Come back tomorrow.";
+  } else {
+    els.buyToggle.disabled = false;
+    els.buyToggle.title = "";
+  }
 }
 
 function render() {
@@ -222,7 +235,6 @@ function setBusy(busy) {
   app.busy = busy;
   if (busy) els.wrap.dataset.busy = 'true';
   else delete els.wrap.dataset.busy;
-  els.buyToggle.disabled = busy;
   for (const button of els.packageList.querySelectorAll('button')) button.disabled = busy;
 }
 
@@ -309,9 +321,6 @@ async function ensureTurnstile() {
       const config = await api('/api/config');
       await loadTurnstileScript();
       
-      // DEBUG: Zeigt den Site Key in der Konsole an
-      console.log("Turnstile Site Key (Frontend):", config.turnstileSiteKey);
-
       app.turnstileWidgetId = window.turnstile.render(els.turnstileBox, {
         sitekey: config.turnstileSiteKey,
         theme: 'dark',
@@ -319,7 +328,6 @@ async function ensureTurnstile() {
         appearance: 'interaction-only',
         callback: (token) => settleTurnstile(null, token),
         'error-callback': (err) => {
-          console.error("Turnstile Fehler:", err);
           settleTurnstile(new Error('The bot check failed. Please try again.'));
           return true;
         },
@@ -505,7 +513,13 @@ function bindEvents() {
   els.button.addEventListener('blur', () => setPressed(false));
   els.button.addEventListener('click', handlePress);
 
-  els.buyToggle.addEventListener('click', () => setPackagesOpen(els.packages.hidden));
+  els.buyToggle.addEventListener('click', () => {
+    if (els.buyToggle.disabled) {
+      setStatus(els.buyToggle.title, 'error');
+      return;
+    }
+    setPackagesOpen(els.packages.hidden);
+  });
 
   els.signOut.addEventListener('click', async () => {
     try {
@@ -544,7 +558,7 @@ async function init() {
   await loadState({ silent: false });
   if (returned && app.state) showReturnMessage(returned);
 
-  if (app.user) ensureTurnstile().catch((err) => console.error("Turnstile Init Fehler:", err));
+  if (app.user) ensureTurnstile().catch(() => {});
 
   startPolling();
   if (returned && returned.payment === 'success' && app.user) pollForCredits();
