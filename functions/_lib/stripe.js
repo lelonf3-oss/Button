@@ -21,6 +21,10 @@ export async function createCheckoutSession(env, { userId, pkg, successUrl, canc
   params.set('line_items[0][price_data][currency]', pkg.currency);
   params.set('line_items[0][price_data][unit_amount]', String(pkg.amountCents));
   params.set('line_items[0][price_data][product_data][name]', pkg.label);
+  
+  // NEU: Deaktiviert die neue "Managed Payments" Funktion von Stripe für diese Session.
+  // Verhindert die Fehlermeldung bezüglich des fehlenden Steuercodes (tax_code).
+  params.set('managed_payments[enabled]', 'false');
 
   let response;
   try {
@@ -38,7 +42,6 @@ export async function createCheckoutSession(env, { userId, pkg, successUrl, canc
 
   if (!response.ok) {
     const errorText = await response.text();
-    // Gibt den echten Stripe-Fehler an das Frontend weiter!
     throw new ApiError(502, 'stripe_error', `Stripe API Error: ${errorText}`);
   }
 
