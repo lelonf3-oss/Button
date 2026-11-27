@@ -1,11 +1,8 @@
 // THE BUTTON: frontend logic.
-// The browser never decides anything: counter, credits and eligibility all come
-// from the server. This file only displays them and sends requests.
 
 import { celebrate } from './celebration.js';
 
 const POLL_INTERVAL_MS = 30000;
-
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const numberFormat = new Intl.NumberFormat('en-US');
 const fmt = (value) => numberFormat.format(value);
@@ -32,10 +29,10 @@ const els = {
 };
 
 const app = {
-  state: null,          // last response from /api/state
-  user: null,           // state.user (null when signed out)
-  knownTotal: null,     // highest counter value seen so far (the counter never decreases)
-  displayedTotal: null, // value currently shown (may be mid-animation)
+  state: null,
+  user: null,
+  knownTotal: null,
+  displayedTotal: null,
   lastCelebrated: 0,
   busy: false,
   statusIsDefault: true,
@@ -47,9 +44,6 @@ const app = {
   turnstilePending: null,
 };
 
-// ---------------------------------------------------------------------------
-// API
-// ---------------------------------------------------------------------------
 class ApiError extends Error {
   constructor(status, code, message) {
     super(message);
@@ -96,9 +90,6 @@ async function api(path, { method = 'GET', body } = {}) {
   return data;
 }
 
-// ---------------------------------------------------------------------------
-// Status line
-// ---------------------------------------------------------------------------
 function setStatus(text, tone = 'info', isDefault = false) {
   els.status.textContent = text;
   els.status.dataset.tone = tone;
@@ -124,9 +115,6 @@ function timeUntilNextClick() {
   return formatDuration(Date.parse(app.user.nextClickAt) - Date.now());
 }
 
-// ---------------------------------------------------------------------------
-// Rendering
-// ---------------------------------------------------------------------------
 let countFrame = 0;
 
 function animateCounter(from, to) {
@@ -138,7 +126,7 @@ function animateCounter(from, to) {
   }
 
   els.total.classList.remove('counter-total-bump');
-  void els.total.offsetWidth; // restart the CSS animation
+  void els.total.offsetWidth;
   els.total.classList.add('counter-total-bump');
 
   const start = performance.now();
@@ -238,9 +226,6 @@ function setBusy(busy) {
   for (const button of els.packageList.querySelectorAll('button')) button.disabled = busy;
 }
 
-// ---------------------------------------------------------------------------
-// Loading state
-// ---------------------------------------------------------------------------
 function maybeCelebrate(threshold) {
   if (!threshold || threshold <= app.lastCelebrated) return;
   app.lastCelebrated = threshold;
@@ -249,13 +234,11 @@ function maybeCelebrate(threshold) {
 
 function applyState(data) {
   const previousTotal = app.knownTotal;
-  // The counter never decreases. A lower number can only be a stale response.
   const total = previousTotal !== null && data.total < previousTotal ? previousTotal : data.total;
 
   app.state = { ...data, total };
   app.user = data.user;
 
-  // Somebody else's click completed a milestone while this page was open.
   if (previousTotal !== null && total > previousTotal) {
     const crossed = data.completedMilestones
       .map((m) => m.threshold)
@@ -296,12 +279,9 @@ async function loadState({ silent = true } = {}) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Cloudflare Turnstile (loaded only when a signed-in user needs it)
-// ---------------------------------------------------------------------------
 function loadTurnstileScript() {
   return new Promise((resolve, reject) => {
-    window.__turnstileOnLoad = resolve; // global callback required by Turnstile's "onload" parameter
+    window.__turnstileOnLoad = resolve;
     const script = document.createElement('script');
     script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=__turnstileOnLoad';
     script.async = true;
@@ -328,13 +308,18 @@ async function ensureTurnstile() {
     app.turnstileInit = (async () => {
       const config = await api('/api/config');
       await loadTurnstileScript();
+      
+      // DEBUG: Zeigt den Site Key in der Konsole an
+      console.log("Turnstile Site Key (Frontend):", config.turnstileSiteKey);
+
       app.turnstileWidgetId = window.turnstile.render(els.turnstileBox, {
         sitekey: config.turnstileSiteKey,
         theme: 'dark',
-        execution: 'execute',          // the check runs only when we call execute()
-        appearance: 'interaction-only', // visible only if Cloudflare needs the user to interact
+        execution: 'execute',
+        appearance: 'interaction-only',
         callback: (token) => settleTurnstile(null, token),
-        'error-callback': () => {
+        'error-callback': (err) => {
+          console.error("Turnstile Fehler:", err);
           settleTurnstile(new Error('The bot check failed. Please try again.'));
           return true;
         },
@@ -351,7 +336,6 @@ async function ensureTurnstile() {
   await app.turnstileInit;
 }
 
-// Tokens are single-use, so every protected request gets a fresh one.
 async function getTurnstileToken() {
   await ensureTurnstile();
   return new Promise((resolve, reject) => {
@@ -365,9 +349,6 @@ async function getTurnstileToken() {
   });
 }
 
-// ---------------------------------------------------------------------------
-// Pressing the button
-// ---------------------------------------------------------------------------
 function setPressed(on) {
   els.button.classList.toggle('is-pressed', on);
   els.wrap.classList.toggle('is-pressed', on);
@@ -398,7 +379,6 @@ function applyClickResult(result) {
   maybeCelebrate(result.milestoneReached);
   setStatus('Your click is counted. Thank you! Come back tomorrow (UTC).', 'success');
 
-  // Refresh milestone data from the database in the background.
   loadState();
 }
 
@@ -444,9 +424,6 @@ async function handlePress() {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Checkout
-// ---------------------------------------------------------------------------
 async function startCheckout(packageId) {
   if (app.busy || !app.user) return;
 
@@ -457,11 +434,10 @@ async function startCheckout(packageId) {
     setStatus('Opening secure checkout…', 'info');
     const { url } = await api('/api/checkout', { method: 'POST', body: { packageId, turnstileToken } });
 
-    // Only ever follow a Stripe-hosted Checkout address.
     if (typeof url !== 'string' || !url.startsWith('https://checkout.stripe.com/')) {
       throw new Error('Unexpected checkout address. Please try again.');
     }
-    window.location.assign(url); // stay busy: the page is navigating away
+    window.location.assign(url);
   } catch (err) {
     setBusy(false);
     els.turnstileBox.classList.remove('is-active');
@@ -469,7 +445,6 @@ async function startCheckout(packageId) {
   }
 }
 
-// After returning from Stripe the webhook may need a few seconds to arrive.
 async function pollForCredits() {
   let last = app.user ? app.user.creditsRemaining : null;
   for (let i = 0; i < 10; i++) {
@@ -489,9 +464,6 @@ async function pollForCredits() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Return from Google / Stripe (?auth=... / ?payment=...)
-// ---------------------------------------------------------------------------
 function handleReturnParams() {
   const params = new URLSearchParams(window.location.search);
   const auth = params.get('auth');
@@ -519,9 +491,6 @@ function showReturnMessage(returned) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Events and startup
-// ---------------------------------------------------------------------------
 function bindEvents() {
   els.button.addEventListener('pointerdown', (event) => {
     if (event.pointerType !== 'mouse' || event.button === 0) setPressed(true);
@@ -550,7 +519,6 @@ function bindEvents() {
     await loadState();
   });
 
-  // Coming back via the browser's back button from Stripe Checkout.
   window.addEventListener('pageshow', (event) => {
     if (event.persisted) {
       setBusy(false);
@@ -576,8 +544,7 @@ async function init() {
   await loadState({ silent: false });
   if (returned && app.state) showReturnMessage(returned);
 
-  // Load the bot check in the background, but only for signed-in users.
-  if (app.user) ensureTurnstile().catch(() => {});
+  if (app.user) ensureTurnstile().catch((err) => console.error("Turnstile Init Fehler:", err));
 
   startPolling();
   if (returned && returned.payment === 'success' && app.user) pollForCredits();
