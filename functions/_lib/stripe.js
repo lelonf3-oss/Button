@@ -5,13 +5,9 @@ import { hmacSha256Hex, timingSafeEqual } from './crypto.js';
 
 const STRIPE_API = 'https://api.stripe.com/v1';
 
-// Creates a Stripe-hosted Checkout Session for one credit package.
-// Returns { id, url }.
 export async function createCheckoutSession(env, { userId, pkg, successUrl, cancelUrl }) {
   requireEnv(env, ['STRIPE_SECRET_KEY']);
 
-  // WICHTIG: .trim() entfernt unsichtbare Leerzeichen am Anfang/Ende des Keys, 
-  // die beim Kopieren oft entstehen und Stripe blockieren.
   const secretKey = env.STRIPE_SECRET_KEY.trim();
 
   const params = new URLSearchParams();
@@ -25,7 +21,6 @@ export async function createCheckoutSession(env, { userId, pkg, successUrl, canc
   params.set('line_items[0][price_data][currency]', pkg.currency);
   params.set('line_items[0][price_data][unit_amount]', String(pkg.amountCents));
   params.set('line_items[0][price_data][product_data][name]', pkg.label);
-  params.set('line_items[0][price_data][product_data][description]', pkg.description);
 
   let response;
   try {
@@ -38,30 +33,25 @@ export async function createCheckoutSession(env, { userId, pkg, successUrl, canc
       body: params,
     });
   } catch (err) {
-    console.error('Stripe request failed:', err);
-    throw new ApiError(502, 'payment_provider_error', 'The payment provider is unavailable.');
+    // Gibt den Netzwerkfehler direkt zurück
+    return new Response(`Stripe Network Error: ${err.message}`, { status: 502 });
   }
 
   if (!response.ok) {
-    // Gibt den exakten Fehler von Stripe im Cloudflare-Log aus, damit wir sehen, was kaputt ist.
+    // Gibt die exakte Fehlermeldung von Stripe im Browser aus
     const errorText = await response.text();
-    console.error('Stripe API Error:', response.status, errorText);
-    throw new ApiError(502, 'payment_provider_error', 'Could not start the checkout.');
+    return new Response(`Stripe API Error (${response.status}): ${errorText}`, { status: 502 });
   }
 
   const data = await response.json();
-  if (!data || typeof data.url !== 'string' || typeof data.id !== 'string') {
-    console.error('Stripe returned invalid data:', data);
-    throw new ApiError(502, 'payment_provider_error', 'Could not start the checkout.');
+  if (!data || typeof data.url !== 'string') {
+    return new Response(`Stripe Invalid Data: ${JSON.stringify(data)}`, { status: 502 });
   }
   return { id: data.id, url: data.url };
 }
 
-// Verifies the "Stripe-Signature" header against the RAW request body.
 export async function verifyStripeSignature(rawBody, signatureHeader, secret, toleranceSeconds = 300) {
   if (!signatureHeader || !secret) return false;
-
-  // Auch hier entfernen wir eventuelle Leerzeichen beim Webhook Secret
   const secretKey = secret.trim();
 
   let timestamp = null;
