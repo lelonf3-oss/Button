@@ -1,11 +1,5 @@
-// POST /api/checkout
-// Body: { "packageId": "pack_10" | "pack_20", "turnstileToken": "<token>" }
-// Headers: X-CSRF-Token, Content-Type: application/json
-// Creates a Stripe-hosted Checkout Session and returns { url }.
-// Credits are NOT granted here. They are granted only by the verified webhook.
-
 import { RATE_LIMITS, getPackage } from '../_lib/config.js';
-import { ApiError, getSiteUrl, json, readJson } from '../_lib/http.js';
+import { ApiError, getSiteUrl, json, readJson, utcDay } from '../_lib/http.js';
 import { enforceIpRateLimit } from '../_lib/rate-limit.js';
 import { requireCsrf, requireSession } from '../_lib/session.js';
 import { createCheckoutSession } from '../_lib/stripe.js';
@@ -20,6 +14,33 @@ export async function onRequestPost({ request, env }) {
   const pkg = getPackage(body.packageId);
   if (!pkg) {
     throw new ApiError(400, 'invalid_package', 'Unknown click package.');
+  }
+
+  // NEUE LOGIK: Prüfen, ob heute schon geklickt oder gekauft wurde
+  const day = utcDay();
+  const dayStart = Math.floor(Date.parse(day + 'T00:00:00Z') / 1000);
+  const dayEnd = dayStart + 86400;
+
+  const row = await env.DB.prepare(
+    `SELECT
+       (SELECT COUNT(*) FROM clicks WHERE user_id = ?1 AND click_day = ?2) AS clicked_today,
+       (SELECT COUNT(*) FROM payments WHERE user_id = ?1 AND created_at >= ?3 AND created_at < ?4) AS bought_today`
+  ).bind(session.userId, day, dayStart, dayEnd).first();
+
+  if (row.clicked_today > 0) {
+    throw new ApiError(
+      409,
+      'already_clicked_today',
+      'You cannot buy credits on the same day you pressed the button. Come back tomorrow.'
+    );
+  }
+
+  if (row.bought_today > 0) {
+    throw new ApiError(
+      409,
+      'already_bought_today',
+      'You can only buy one package per day. Come back tomorrow.'
+    );
   }
 
   await requireTurnstile(env, request, body.turnstileToken);
