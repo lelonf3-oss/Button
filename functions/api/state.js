@@ -40,7 +40,7 @@ function buildUserView(status, csrfToken) {
     creditsRemaining: status.creditsRemaining,
     clickedToday: status.clickedToday,
     boughtToday: status.boughtToday,
-    canClick: !status.clickedToday && (!status.freeUsed || status.creditsRemaining > 0),
+    canClick: !status.freeUsed || status.creditsRemaining > 0,
     nextClickAt: nextUtcMidnightIso(),
   };
 }
@@ -51,10 +51,7 @@ export async function onRequestGet({ request, env }) {
     getSession(request, env),
   ]);
 
-  if (!counterRow) {
-    console.error('global_counter row is missing.');
-    throw new ApiError(500, 'database_not_ready', 'The server is not configured correctly.');
-  }
+  if (!counterRow) throw new ApiError(500, 'database_not_ready', 'The server is not configured correctly.');
 
   const total = counterRow.total;
   const completedMilestones = await syncCompletedMilestones(env, total);
