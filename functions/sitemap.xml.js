@@ -4,7 +4,7 @@
 
 import { getSiteUrl } from './_lib/http.js';
 
-const PATHS = ['/', '/privacy', '/terms', '/payments', '/imprint'];
+const PATHS = ['/', '/privacy.html', '/terms.html', '/payments.html', '/imprint.html'];
 
 function escapeXml(value) {
   return value
